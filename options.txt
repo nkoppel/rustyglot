@@ -1,0 +1,39 @@
+    -e: don't take an output file, instead, at the end of operations, write back into input file if the streams are of the same type. Otherwise, error.
+    -pruned <file> | -p <file>:
+        instead of removing, write all pruned entries into file
+    -out <file>
+
+pgn options:
+    -merge <pgn file>
+
+    -min-elo <elo>
+    -max-elo <elo>
+    -min-high-elo <elo>
+    -max-low-elo <elo>
+
+    -min-time <time>
+    -max-time <time>
+    -min-increment <time>
+    -max-increment <time>
+
+    -no-draws
+    -no-wins
+    -no-white-wins
+    -no-black-wins
+
+bin options:
+    -merge <file>
+
+    -set-root <fen string>
+    -filter <moves>
+        format: e4 (d5/c5) d4 d6 / d4 d5
+
+    -prune-weight <min weight>
+    -prune-depth <max_depth>
+    -prune-tree: remove all nodes not connected to the root node
+    -prune-best <num best>?
+    -white-only
+    -black-only
+
+    -clear-learning
+    -uniform

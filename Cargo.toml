@@ -1,0 +1,12 @@
+[package]
+name = "book-builder"
+version = "0.1.0"
+authors = ["Nathan Koppel <nathankoppel0@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+shakmaty="0.19"
+pgn-reader="0.18"
