@@ -1,3 +1,5 @@
+// reference: http://hgm.nubati.net/book_format.html
+
 pub use shakmaty::{
     Chess,
     Board,
@@ -5,14 +7,17 @@ pub use shakmaty::{
     Position,
     uci::Uci,
     san::{San, SanPlus},
-    fen::Fen,
+    fen::{Fen, fen},
     Role,
     Color,
     Square,
     CastlingSide,
     CastlingMode,
+    CastlingMode::*,
     Outcome,
 };
+
+pub const START_HASH: u64 = 0x463b96181691fc9c;
 
 const RANDOM_PIECE: [u64; 768] = [
 0x9D39247E33776D41, 0x2AF7398005AAA5C7, 0x44DB015024623547, 0x9C15F73E62A76AE2,
