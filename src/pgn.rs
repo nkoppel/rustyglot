@@ -138,36 +138,41 @@ impl PgnFilter {
         true
     }
 
-    pub fn set_args(&mut self, args: &[String]) {
-        let mut iter = args.iter();
+    pub fn from_args(args: &[String]) -> Self {
+        let mut out = Self::new();
+        let mut i = 0;
 
-        while let Some(a) = iter.next() {
-            match &a[..] {
-                "-no-draws" => self.draws = false,
-                "-no-white-wins" => self.white_wins = false,
-                "-no-black-wins" => self.black_wins = false,
+        while i < args.len() {
+            match &args[i][..] {
+                "-no-draws" => out.draws = false,
+                "-no-white-wins" => out.white_wins = false,
+                "-no-black-wins" => out.black_wins = false,
                 "-no-wins" => {
-                    self.white_wins = false;
-                    self.black_wins = false
+                    out.white_wins = false;
+                    out.black_wins = false
                 }
-                _ => if let Some(n) = iter.next() {
-                    let num = n.parse::<usize>().unwrap();
+                _ => if i + 1 < args.len() {
+                    if let Ok(num) = args[i + 1].parse::<usize>() {
+                        match &args[i][..] {
+                            "-min-elo" => out.min_elo = num,
+                            "-max-elo" => out.max_elo = num,
+                            "-min-high-elo" => out.min_high_elo = num,
+                            "-max-low-elo"  => out.max_low_elo  = num,
 
-                    match &a[..] {
-                        "-min-elo" => self.min_elo = num,
-                        "-max-elo" => self.max_elo = num,
-                        "-min-high-elo" => self.min_high_elo = num,
-                        "-max-low-elo"  => self.max_low_elo  = num,
-
-                        "-min-time" => self.min_time = num,
-                        "-max-time" => self.max_time = num,
-                        "-min-increment" => self.min_increment = num,
-                        "-max-increment" => self.max_increment = num,
-                        _ => {}
+                            "-min-time" => out.min_time = num,
+                            "-max-time" => out.max_time = num,
+                            "-min-increment" => out.min_increment = num,
+                            "-max-increment" => out.max_increment = num,
+                            _ => {}
+                        }
                     }
                 }
             }
+
+            i += 1;
         }
+
+        out
     }
 }
 

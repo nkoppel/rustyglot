@@ -1,9 +1,8 @@
+<infiles> <pgn options>? <bin options>? <outfile>
+
     -e: don't take an output file, instead, at the end of operations, write back into input file if the streams are of the same type. Otherwise, error.
-    -out <file>
 
 pgn options:
-    -merge <pgn file>
-
     -min-elo <elo>
     -max-elo <elo>
     -min-high-elo <elo>
@@ -14,21 +13,21 @@ pgn options:
     -min-increment <time>
     -max-increment <time>
 
+    -depth <max_depth>: truncates each game to max_depth half-moves
+
+    -all-draws: makes the result of each game a draw
+
     -no-draws
     -no-wins
     -no-white-wins
     -no-black-wins
 
 bin options:
-    -merge <file>
+    -set-root <fen string>: default is the starting position
 
-    -set-root <fen string>: default is startpos
-    -filter <moves>
-        format: e4 (d5/c5) d4 d6 / d4 d5
-
-    -prune-weight <min weight>
-    -prune-depth <max_depth>
-    -prune-disconnected: remove all nodes not connected to the root node
+    -weight <min weight>
+    -depth <max_depth>
+    -remove-disconnected: remove all nodes not connected to the root node
     -keep-best <num best>?
     -keep-worst <num worst>?
     -white-only

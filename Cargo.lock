@@ -25,6 +25,9 @@ name = "book-builder"
 version = "0.1.0"
 dependencies = [
  "pgn-reader",
+ "serde",
+ "serde_json",
+ "serde_stacker",
  "shakmaty",
 ]
 
@@ -36,6 +39,24 @@ checksum = "97c0869a9faa81f8bbf8102371105d6d0a7b79167a04c340b04ab16892246a11"
 dependencies = [
  "num-traits",
 ]
+
+[[package]]
+name = "cc"
+version = "1.0.68"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a72c244c1ff497a746a7e1fb3d14bd08420ecda70c8f25c7112f2781652d787"
+
+[[package]]
+name = "cfg-if"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "itoa"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736"
 
 [[package]]
 name = "libc"
@@ -80,6 +101,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "psm"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21ff0279b4a85e576b97e4a21d13e437ebcd56612706cde5d3f0d5c9399490c0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "ryu"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
+
+[[package]]
+name = "serde"
+version = "1.0.126"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
+
+[[package]]
+name = "serde_json"
+version = "1.0.64"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "799e97dc9fdae36a5c8b8f2cae9ce2ee9fdce2058c57a93e6099d919fd982f79"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
+]
+
+[[package]]
+name = "serde_stacker"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f4c92391a63e3b83f77334d8beaaf11bac4c900f3769483e543bf76a81bf8ee2"
+dependencies = [
+ "serde",
+ "stacker",
+]
+
+[[package]]
 name = "shakmaty"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -98,6 +161,19 @@ checksum = "31ef6ee280cdefba6d2d0b4b78a84a1c1a3f3a4cec98c2d4231c8bc225de0f25"
 dependencies = [
  "libc",
  "mach",
+ "winapi",
+]
+
+[[package]]
+name = "stacker"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "90939d5171a4420b3ff5fbc8954d641e7377335454c259dcb80786f3f21dc9b4"
+dependencies = [
+ "cc",
+ "cfg-if",
+ "libc",
+ "psm",
  "winapi",
 ]
 

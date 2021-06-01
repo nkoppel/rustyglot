@@ -2,15 +2,20 @@ use crate::conversions::*;
 use crate::pgn::*;
 
 use std::collections::HashMap;
-use std::io::{Read, Write, BufRead};
+use std::io::{Read, Write};
 use std::convert::TryInto;
-use std::cmp::Reverse;
+
+mod txt_books;
+
+pub use txt_books::*;
+
+const U16_MAX: u64 = u16::MAX as u64;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BookEntry {
     mov: u16,
     depth: Option<usize>,
-    weight: usize,
+    weight: u64,
     learn: u32
 }
 
@@ -52,7 +57,7 @@ impl BookEntry {
         let mut out = Self::new();
 
         out.mov    = u16::from_be_bytes(bytes[0..2].try_into().unwrap());
-        out.weight = u16::from_be_bytes(bytes[2..4].try_into().unwrap()) as usize;
+        out.weight = u16::from_be_bytes(bytes[2..4].try_into().unwrap()) as u64;
         out.learn  = u32::from_be_bytes(bytes[4..8].try_into().unwrap());
 
         out
@@ -163,7 +168,7 @@ impl BookMap {
         });
     }
 
-    pub fn into_writer<W: Write>(self, writer: &mut W) {
+    pub fn write<W: Write>(self, writer: &mut W) {
         let mut vec = self.map
             .into_iter()
             .map(|(hash, mut entries)|{
@@ -176,166 +181,17 @@ impl BookMap {
 
         for (hash, entries) in vec {
             let hash_bytes = hash.to_be_bytes();
+            let max_weight = entries.iter().map(|e| e.weight).max().unwrap();
 
-            for entry in entries {
+            for mut entry in entries {
+                if max_weight > U16_MAX {
+                    entry.weight *= U16_MAX;
+                    entry.weight /= max_weight;
+                }
                 writer.write_all(&hash_bytes);
                 writer.write_all(&entry.to_bytes());
             }
         }
-    }
-
-    pub fn into_txt_writer<W: Write>(&mut self, mut w: &mut W) {
-        if book_hash(self.root.clone()) != START_HASH {
-            writeln!(w, "{}", fen(&self.root));
-        }
-
-        let mut last_weight = 0;
-        let mut last_depth = 0;
-        let mut depths = Vec::new();
-
-        self.traverse_tree(|depth, pos, entries, ind| {
-            if ind == 0 {
-                entries.sort_unstable_by_key(|entry| Reverse(entry.weight));
-            }
-
-            let only_child = entries.len() == 1;
-            let entry = &entries[ind];
-
-            let mov = from_book_move(entry.mov).to_move(pos).unwrap();
-            let san = SanPlus::from_move(pos.clone(), &mov);
-
-            while depth >= depths.len() {
-                depths.push(0);
-            }
-
-            if only_child {
-                if depth > 0 {
-                    depths[depth] = depths[depth - 1];
-                }
-                write!(&mut w, ", ");
-            } else {
-                if depth > 0 {
-                    depths[depth] = depths[depth - 1] + 1;
-                }
-                if depth < last_depth {
-                    writeln!(&mut w);
-                }
-                write!(&mut w, "\n{}", "    ".repeat(depths[depth]));
-                last_depth = depth;
-            }
-
-            if (entry.weight != 1 && !only_child) || (only_child && entry.weight != last_weight) {
-                write!(&mut w, "{} ", entry.weight);
-            }
-            last_weight = entry.weight;
-
-            write!(&mut w, "{}", san);
-
-            if entry.learn != 0 {
-                write!(&mut w, " {}", entry.learn);
-            }
-        });
-    }
-}
-
-fn process_line<'a>(line: &'a str) -> (&'a str, usize) {
-    let mut indent = 0;
-    let mut start = 0;
-
-    for c in line.chars() {
-        match c {
-            ' ' => indent += 1,
-            '\t' => indent += 4,
-            _ => break
-        }
-        start += 1;
-    }
-
-    let end = line.find(";").unwrap_or(line.len());
-    (line[start..end].trim(), indent)
-}
-
-impl BookMap {
-    pub fn from_txt_reader<R: BufRead>(reader: &mut R) -> Self {
-        let mut out = BookMap::new();
-        let mut stack: Vec<(Chess, usize)> = Vec::new();
-        let mut pos = Chess::default();
-        let mut root = true;
-
-        for (line_number, l) in reader.lines().enumerate() {
-            let l = l.unwrap();
-            let (line, indent) = process_line(&l);
-
-            if line.is_empty() {
-                continue;
-            }
-
-            if root {
-                if let Ok(fen) = line.parse::<Fen>() {
-                    pos = fen.position(Chess960).expect("Invalid root position");
-                    out.root = pos.clone();
-                    root = false;
-                    continue;
-                }
-            }
-
-            root = false;
-
-            let mut weight = 1;
-            let mut first_entry = true;
-
-            for entry in line.split(',') {
-                let mut san = None;
-                let mut learn = 0;
-
-                for word in entry.split_whitespace() {
-                    if let Ok(n) = word.parse::<usize>() {
-                        if san == None {
-                            weight = n;
-                        } else {
-                            learn = n as u32;
-                        }
-                    } else if let Ok(s) = word.parse::<SanPlus>() {
-                        san = Some(s);
-                    } else {
-                        panic!("Invalid token {:?} on line {}", word, line_number + 1);
-                    }
-                }
-
-                if first_entry {
-                    while let Some((_, indent2)) = stack.last() {
-                        if *indent2 < indent {
-                            break;
-                        } else {
-                            pos = stack.pop().unwrap().0;
-                        }
-                    }
-
-                    first_entry = false;
-                }
-
-                let san = san.expect(&format!("Entry without move on line {}", line_number));
-
-                let mov = san.san
-                    .to_move(&pos)
-                    .expect(&format!("Invalid move {} for position {:?} on line {}", san, fen(&pos), line_number));
-
-                let book_move = to_book_move(Uci::from_chess960(&mov));
-
-                let entry = BookEntry {
-                    mov: book_move,
-                    depth: Some(stack.len()),
-                    weight,
-                    learn
-                };
-
-                out.insert_no_merge(book_hash(pos.clone()), entry);
-                stack.push((pos.clone(), indent));
-                pos.play_unchecked(&mov);
-            }
-        }
-
-        out
     }
 
     pub fn extend_from_reader<R: Read>(&mut self, reader: &mut R) {

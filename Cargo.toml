@@ -10,3 +10,6 @@ edition = "2018"
 
 shakmaty="0.19"
 pgn-reader="0.18"
+serde_json={version = "1.0", features = ["unbounded_depth"]}
+serde_stacker="0.1"
+serde="1.0"
