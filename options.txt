@@ -1,5 +1,17 @@
-<infiles> <pgn options>? <bin options>? <outfile>
+<infiles/input options> <pgn options>? <bin options>? <outfile/output options>
 
+input options:
+    -in-json
+    -in-txt
+    -in-bin
+    -in-pgn
+
+output options:
+    -out-json
+    -out-txt
+    -out-blob
+    -out-bin
+    -out-pgn
     -e: don't take an output file, instead, at the end of operations, write back into input file if the streams are of the same type. Otherwise, error.
 
 pgn options:

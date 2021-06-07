@@ -170,11 +170,12 @@ impl BookMap {
         let mut out = BookMap::new();
         let mut stack: Vec<(Chess, usize)> = Vec::new();
         let mut pos = Chess::default();
+        let mut paren_indent = 0;
         let mut root = true;
 
         for (line_number, line) in reader.lines().enumerate() {
             let mut line = line.unwrap();
-            let mut indent = process_line(&mut line);
+            let indent = process_line(&mut line) + paren_indent;
 
             if line.trim().is_empty() {
                 continue;
@@ -263,9 +264,9 @@ impl BookMap {
                     read_weight = true;
                 }
                 match c {
-                    '/' => {             first_entry = true; weight = 1}
-                    '(' => {indent += 4; first_entry = true; weight = 1}
-                    ')' => {indent -= 4; first_entry = true; weight = 1}
+                    '/' => {                   first_entry = true; weight = 1}
+                    '(' => {paren_indent += 4; first_entry = true; weight = 1}
+                    ')' => {paren_indent -= 4; first_entry = true; weight = 1}
                     _ => {}
                 }
             }
