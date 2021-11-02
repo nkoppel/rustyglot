@@ -206,8 +206,6 @@ fn write_book(book: &mut BookMap, outputs: &[(FileType, String)]) {
                 Box::new(File::create(filename).unwrap())
             };
 
-        println!("{:?}", filetype);
-
         match filetype {
             Bin => book.write(&mut writer),
             Json => book.write_json(&mut writer),
@@ -221,20 +219,12 @@ fn write_book(book: &mut BookMap, outputs: &[(FileType, String)]) {
 pub fn run() {
     let args = env::args().skip(1).collect::<Vec<_>>();
 
-    println!("a");
-
     let inputs = get_input_files(&args);
     let outputs = get_output_files(&args);
 
-    println!("a");
-
     let mut book = book_from_pgns(&args, &inputs);
 
-    println!("a");
-
     merge_book_files(&mut book, &inputs);
-    println!("a");
     modify_book(&mut book, &args);
-    println!("a");
     write_book(&mut book, &outputs);
 }
