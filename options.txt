@@ -1,18 +1,22 @@
 <infiles/input options> <pgn options>? <bin options>? <outfile/output options>
 
-input options:
+input options: // only necessary if the format of the input file differs from the extension
+    note: '-' should indicate stdin
     -in-json
-    -in-txt
+    -in-tree
     -in-bin
     -in-pgn
 
 output options:
-    -out-json
-    -out-txt
-    -out-blob
-    -out-bin
-    -out-pgn
-    -e: don't take an output file, instead, at the end of operations, write back into input file if the streams are of the same type. Otherwise, error.
+    note: the last filename is implicitly the output file, and uses file extension detection like -out
+
+    output to file
+        -out <file>: output into file with file extension detection
+    output to stdout
+        -out-json
+        -out-tree
+        -out-tree-blob
+        -out-bin
 
 pgn options:
     -min-elo <elo>
@@ -27,19 +31,25 @@ pgn options:
 
     -depth <max_depth>: truncates each game to max_depth half-moves
 
-    -all-draws: makes the result of each game a draw
+    -all-draws: selects only games which are draws
 
     -no-draws
     -no-wins
     -no-white-wins
     -no-black-wins
 
-bin options:
-    -set-root <fen string>: default is the starting position
+pgn to bin conversion options
+    -frequency: instead of weighing moves by 2 points per win and 1 point per draw, weigh them by one point per occurrence
+    -pgn-depth <max_depth> (default 10)
 
-    -weight <min weight>
+bin options:
+    -set-root <fen string>: default is the normal starting position
+
+    -min-weight <weight>
+    -max-weight <weight>
+
     -depth <max_depth>
-    -remove-disconnected: remove all nodes not connected to the root node
+    -remove-disconnected: remove all nodes not below the root node
     -keep-best <num best>?
     -keep-worst <num worst>?
     -white-only
@@ -47,3 +57,4 @@ bin options:
 
     -clear-learning
     -uniform
+    -scale-weights <factor>: multiply all weights by the floating point factor

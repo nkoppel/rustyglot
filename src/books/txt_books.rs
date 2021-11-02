@@ -1,7 +1,6 @@
 use super::*;
 
 use std::io::{Write, BufRead};
-use std::convert::TryInto;
 use std::cmp::Reverse;
 
 use serde_json::Value;

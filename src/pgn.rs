@@ -165,6 +165,8 @@ impl PgnFilter {
                             "-max-increment" => out.max_increment = num,
                             _ => {}
                         }
+
+                        i += 1;
                     }
                 }
             }
@@ -277,10 +279,22 @@ use std::io::{Read, Write};
 
 pub fn read_games<R: Read>(filter: PgnFilter, read: R) -> Vec<PgnGame> {
     let mut visitor = PgnVisitor::with_filter(filter);
+
     BufferedReader::new(read)
         .into_iter(&mut visitor)
         .map(|x| x.unwrap())
         .collect()
+}
+
+pub fn fold_games<R, F>(filter: PgnFilter, read: R, f: &mut F)
+    where R: Read,
+          F: FnMut(PgnGame)
+{
+    let mut visitor = PgnVisitor::with_filter(filter);
+
+    for game in BufferedReader::new(read).into_iter(&mut visitor) {
+        f(game.unwrap())
+    }
 }
 
 pub fn write_games<W: Write>(w: &mut W, games: &[PgnGame]) {

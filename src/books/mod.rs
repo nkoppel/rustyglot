@@ -13,10 +13,10 @@ const U16_MAX: u64 = u16::MAX as u64;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BookEntry {
-    mov: u16,
-    depth: Option<usize>,
-    weight: u64,
-    learn: u32
+    pub mov: u16,
+    pub depth: Option<usize>,
+    pub weight: u64,
+    pub learn: u32
 }
 
 pub struct BookMap {
@@ -143,7 +143,9 @@ impl BookMap {
         });
     }
 
-    pub fn map_entries<F>(&mut self, mut f: F) where F: FnMut(&mut BookEntry) {
+    pub fn map_entries<F>(&mut self, mut f: F)
+        where F: FnMut(&mut BookEntry)
+    {
         for (_, v) in &mut self.map {
             for entry in v {
                 f(entry)
@@ -151,16 +153,16 @@ impl BookMap {
         }
     }
 
-    pub fn filter<F>(&mut self, mut f: F) where F: FnMut(&BookEntry) -> bool {
+    pub fn filter<F>(&mut self, mut f: F)
+        where F: FnMut(&BookEntry) -> bool
+    {
         self.map.retain(|_, vec| {
             vec.retain(|x| f(x));
             !vec.is_empty()
         })
     }
 
-    pub fn set_root(&mut self, root: Chess) {
-        self.root = root;
-
+    pub fn set_depths(&mut self) {
         self.map_entries(|entry| entry.depth = None);
 
         self.traverse_tree(|depth, _, entries, ind| {
@@ -168,11 +170,25 @@ impl BookMap {
         });
     }
 
-    pub fn write<W: Write>(self, writer: &mut W) {
+    pub fn set_root(&mut self, root: Chess) {
+        self.root = root;
+
+        self.set_depths();
+    }
+
+    pub fn remove_disconnected(&mut self) {
+        self.set_depths();
+
+        self.filter(|entry| entry.depth.is_some());
+    }
+
+    pub fn write<W: Write>(&self, writer: &mut W) {
         let mut vec = self.map
-            .into_iter()
-            .map(|(hash, mut entries)|{
+            .iter()
+            .map(|(hash, entries)|{
+                let mut entries = entries.clone();
                 entries.sort_unstable();
+
                 (hash, entries)
             })
             .collect::<Vec<_>>();
@@ -205,37 +221,43 @@ impl BookMap {
         }
     }
 
-    pub fn extend_from_games(&mut self, games: &[PgnGame], depth: usize) {
-        for game in games.iter() {
-            let mut board = Chess::default();
+    pub fn add_game(&mut self, game: &PgnGame, frequency: bool, depth: usize) {
+        let mut board = Chess::default();
 
-            for (depth, sanplus) in game.moves.iter().take(depth).enumerate() {
-                let hash = book_hash(board.clone());
+        for (depth, sanplus) in game.moves.iter().take(depth).enumerate() {
+            let hash = book_hash(board.clone());
 
-                let mov = sanplus.san.to_move(&board).unwrap();
-                let uci = Uci::from_chess960(&mov);
-                board = board.play(&mov).unwrap();
+            let mov = sanplus.san.to_move(&board).unwrap();
+            let uci = Uci::from_chess960(&mov);
+            board = board.play(&mov).unwrap();
 
-                let weight =
-                    if let Outcome::Decisive{winner} = game.outcome {
-                        if (winner == Color::White) == (depth % 2 == 0) {
-                            2
-                        } else {
-                            0
-                        }
+            let weight =
+                if frequency {
+                    1
+                } else if let Outcome::Decisive{winner} = game.outcome {
+                    if (winner == Color::White) == (depth % 2 == 0) {
+                        2
                     } else {
-                        1
-                    };
-
-                self.insert(hash,
-                    BookEntry {
-                        mov: to_book_move(uci),
-                        depth: Some(depth),
-                        weight,
-                        learn: 0
+                        0
                     }
-                )
-            }
+                } else {
+                    1
+                };
+
+            self.insert(hash,
+                BookEntry {
+                    mov: to_book_move(uci),
+                    depth: Some(depth),
+                    weight,
+                    learn: 0
+                }
+            )
+        }
+    }
+
+    pub fn extend_from_games(&mut self, games: &[PgnGame], frequency: bool, depth: usize) {
+        for game in games.iter() {
+            self.add_game(game, frequency, depth);
         }
     }
 }
