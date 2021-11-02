@@ -228,7 +228,7 @@ impl BookMap {
                 if "\n,/()".contains(c) && entrystart != i {
                     if first_entry {
                         while let Some((_, indent2)) = stack.last() {
-                            if *indent2 < indent {
+                            if *indent2 < indent + paren_indent {
                                 break;
                             } else {
                                 pos = stack.pop().unwrap().0;
@@ -254,7 +254,7 @@ impl BookMap {
                     };
 
                     out.insert_no_merge(book_hash(pos.clone()), entry);
-                    stack.push((pos.clone(), indent));
+                    stack.push((pos.clone(), indent + paren_indent));
                     pos.play_unchecked(&mov);
 
                     san = None;
