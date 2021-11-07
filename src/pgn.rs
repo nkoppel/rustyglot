@@ -42,7 +42,7 @@ pub struct PgnFilter {
 struct PgnVisitor {
     game: PgnGame,
     filter: PgnFilter,
-    is_standard_variant: bool
+    skip: bool
 }
 
 impl PgnGame {
@@ -210,7 +210,7 @@ impl PgnVisitor {
         PgnVisitor {
             game: PgnGame::new(),
             filter: PgnFilter::new(),
-            is_standard_variant: true,
+            skip: false,
         }
     }
 
@@ -218,7 +218,7 @@ impl PgnVisitor {
         PgnVisitor {
             game: PgnGame::new(),
             filter,
-            is_standard_variant: true,
+            skip: false,
         }
     }
 
@@ -272,12 +272,18 @@ impl Visitor for PgnVisitor {
                 }
             }
             "WhiteElo" => {
-                let e = v.parse::<usize>().expect("Invalid White Elo!");
-                self.game.white_elo = Some(e);
+                if let Ok(e) = v.parse::<usize>() {
+                    self.game.white_elo = Some(e);
+                } else {
+                    self.skip = true;
+                }
             }
             "BlackElo" =>  {
-                let e = v.parse::<usize>().expect("Invalid Black Elo!");
-                self.game.black_elo = Some(e);
+                if let Ok(e) = v.parse::<usize>() {
+                    self.game.black_elo = Some(e);
+                } else {
+                    self.skip = true;
+                }
             }
             "Result" => {
                 match &v[..] {
@@ -289,7 +295,7 @@ impl Visitor for PgnVisitor {
             // Useful when dealing with Lichess exports
             "Variant" => {
                 if v != "Standard" {
-                    self.is_standard_variant = false
+                    self.skip = true
                 }
             }
             _ => {}
@@ -299,10 +305,7 @@ impl Visitor for PgnVisitor {
     }
 
     fn end_headers(&mut self) -> Skip {
-        Skip(
-            !(self.filter.header_matches(&self.game) &&
-              self.is_standard_variant)
-        )
+        Skip(!self.filter.header_matches(&self.game) || self.skip)
     }
 
     fn san(&mut self, san: SanPlus) {

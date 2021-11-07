@@ -199,6 +199,13 @@ fn modify_book(book: &mut BookMap, args: &[String]) {
                         node.truncate(worst);
                     })
                 }
+                "-scale-weights" => {
+                    let factor = args[i].parse::<f64>().unwrap();
+
+                    book.map_entries(|entry| {
+                        entry.weight = (entry.weight as f64 * factor) as u64
+                    })
+                }
                 _ => i -= 1
             }
         }
