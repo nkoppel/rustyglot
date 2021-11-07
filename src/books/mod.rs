@@ -15,8 +15,9 @@ const U16_MAX: u64 = u16::MAX as u64;
 pub struct BookEntry {
     pub mov: u16,
     pub depth: Option<usize>,
+    pub visited: bool,
     pub weight: u64,
-    pub learn: u32
+    pub learn: u32,
 }
 
 pub struct BookMap {
@@ -31,10 +32,11 @@ impl BookEntry {
             depth: None,
             weight: 0,
             learn: 0,
+            visited: false,
         }
     }
 
-    pub fn merge(&mut self, other: &BookEntry) -> bool {
+    pub fn combine(&mut self, other: &BookEntry) -> bool {
         if self.mov != other.mov {
             return false;
         }
@@ -72,10 +74,14 @@ impl BookMap {
         }
     }
 
-    pub fn insert(&mut self, hash: u64, entry: BookEntry) {
+    pub fn len(&self) -> usize {
+        self.map.len()
+    }
+
+    pub fn insert_combine(&mut self, hash: u64, entry: BookEntry) {
         if let Some(v) = self.map.get_mut(&hash) {
             for entry2 in v.iter_mut() {
-                if entry2.merge(&entry) {
+                if entry2.combine(&entry) {
                     return;
                 }
             }
@@ -85,7 +91,7 @@ impl BookMap {
         }
     }
 
-    pub fn insert_no_merge(&mut self, hash: u64, entry: BookEntry) {
+    pub fn insert(&mut self, hash: u64, entry: BookEntry) {
         if let Some(v) = self.map.get_mut(&hash) {
             for entry2 in v.iter_mut() {
                 if entry2.mov == entry.mov {
@@ -95,6 +101,14 @@ impl BookMap {
             v.push(entry);
         } else {
             self.map.insert(hash, vec![entry]);
+        }
+    }
+
+    pub fn merge_combine(&mut self, other: BookMap) {
+        for (hash, v) in other.map {
+            for entry in v {
+                self.insert_combine(hash, entry);
+            }
         }
     }
 
@@ -119,11 +133,13 @@ impl BookMap {
                     f(stack.len(), &pos, &mut entries, ind);
                 }
 
-                if ind < entries.len() {
+                if let Some(ind) = entries.iter().position(|e| !e.visited) {
                     let mov =
                         from_book_move(entries[ind].mov)
                             .to_move(&pos)
                             .unwrap();
+
+                    entries[ind].visited = true;
 
                     stack.push((pos.clone(), ind + 1));
                     stack.push((pos.play(&mov).unwrap(), 0));
@@ -132,6 +148,7 @@ impl BookMap {
                 }
             }
         }
+        self.map_entries(|e| e.visited = false);
     }
 
     pub fn map_nodes<F>(&mut self, mut f: F)
@@ -210,6 +227,17 @@ impl BookMap {
         }
     }
 
+    pub fn extend_from_reader_combine<R: Read>(&mut self, reader: &mut R) {
+        let mut buf = [0u8; 16];
+
+        while let Ok(()) = reader.read_exact(&mut buf[..]) {
+            let hash = u64::from_be_bytes(buf[0..8].try_into().unwrap());
+            let entry = BookEntry::from_bytes(&buf[8..]);
+
+            self.insert_combine(hash, entry);
+        }
+    }
+
     pub fn extend_from_reader<R: Read>(&mut self, reader: &mut R) {
         let mut buf = [0u8; 16];
 
@@ -244,9 +272,11 @@ impl BookMap {
                     1
                 };
 
-            self.insert(hash,
+            self.insert_combine(
+                hash,
                 BookEntry {
                     mov: to_book_move(uci),
+                    visited: false,
                     depth: Some(depth),
                     weight,
                     learn: 0

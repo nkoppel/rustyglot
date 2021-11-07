@@ -248,12 +248,13 @@ impl BookMap {
 
                     let entry = BookEntry {
                         mov: book_move,
+                        visited: false,
                         depth: Some(stack.len()),
                         weight,
-                        learn
+                        learn,
                     };
 
-                    out.insert_no_merge(book_hash(pos.clone()), entry);
+                    out.insert(book_hash(pos.clone()), entry);
                     stack.push((pos.clone(), indent + paren_indent));
                     pos.play_unchecked(&mov);
 
@@ -317,12 +318,13 @@ impl BookMap {
 
             let out_entry = BookEntry {
                 mov: book_move,
+                visited: false,
                 depth: Some(stack.len()),
                 weight,
                 learn: learn as u32
             };
 
-            out.insert_no_merge(book_hash(pos.clone()), out_entry);
+            out.insert(book_hash(pos.clone()), out_entry);
             stack.push((pos.clone(), entries, ind + 1));
 
             let pos = pos.clone().play(&mov).unwrap();

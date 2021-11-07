@@ -32,7 +32,11 @@ fn get_input_files(args: &[String]) -> Vec<(FileType, String)> {
                 out.push((types[j], args[i + 1].clone()));
                 i += 1;
             }
-        } else if let Some(j) = exts.iter().position(|x| arg[arg.len() - x.len()..] == **x) {
+        } else if let Some(j) =
+            exts.iter().position(|x|
+                arg[arg.len().saturating_sub(x.len())..] == **x
+            )
+        {
             out.push((types[j], args[i].clone()));
         }
 
@@ -58,7 +62,11 @@ fn get_output_files(args: &[String]) -> Vec<(FileType, String)> {
                 out.push((types[j], args[i + 1].clone()));
                 i += 1;
             }
-        } else if let Some(j) = exts.iter().position(|x| arg[arg.len() - x.len()..] == **x) {
+        } else if let Some(j) =
+            exts.iter().position(|x|
+                arg[arg.len().saturating_sub(x.len())..] == **x
+            )
+        {
             out.push((types[j], args[i].clone()));
         }
 
@@ -76,10 +84,12 @@ fn book_from_pgns(args: &[String], files: &[(FileType, String)]) -> BookMap {
 
     let depth =
         if let Some(pos) = args.iter().position(|x| x == "-pgn-depth") {
-            args[pos].parse::<usize>().unwrap_or(10)
+            args[pos + 1].parse::<usize>().unwrap_or(usize::MAX)
         } else {
-            10
+            usize::MAX
         };
+
+    let mut i = 0;
 
     for (_, filename) in files.iter().filter(|x| x.0 == Pgn) {
         let reader: Box<dyn Read> =
@@ -92,14 +102,22 @@ fn book_from_pgns(args: &[String], files: &[(FileType, String)]) -> BookMap {
         fold_games(
             filter.clone(),
             reader,
-            &mut |game| book.add_game(&game, frequency, depth)
+            &mut |game| {
+                i += 1;
+                book.add_game(&game, frequency, depth)
+            }
         );
     }
+
+    println!("Wrote entries from {} games", i);
 
     book
 }
 
-fn merge_book_files(book: &mut BookMap, files: &[(FileType, String)]) {
+fn merge_book_files(book: &mut BookMap, files: &[(FileType, String)], args: &[String]) {
+    let combine = args.contains(&"-combine-entries".to_string());
+    let mut merged = false;
+
     for (filetype, filename) in files.iter().filter(|x| x.0 != Pgn) {
         let mut reader: Box<dyn Read> =
             if filename == "-" {
@@ -109,7 +127,11 @@ fn merge_book_files(book: &mut BookMap, files: &[(FileType, String)]) {
             };
 
         if *filetype == Bin {
-            book.extend_from_reader(&mut reader)
+            if combine {
+                book.extend_from_reader_combine(&mut reader)
+            } else {
+                book.extend_from_reader(&mut reader)
+            }
         } else {
             let book2 =
                 match filetype {
@@ -118,10 +140,17 @@ fn merge_book_files(book: &mut BookMap, files: &[(FileType, String)]) {
                     _ => panic!()
                 };
 
-            book.merge(book2);
+            if combine {
+                book.merge_combine(book2);
+            } else {
+                book.merge(book2);
+            }
         }
+        merged = true;
     }
-    book.set_depths();
+    if merged {
+        book.set_depths();
+    }
 }
 
 fn modify_book(book: &mut BookMap, args: &[String]) {
@@ -131,7 +160,7 @@ fn modify_book(book: &mut BookMap, args: &[String]) {
         if i < args.len() - 1 {
             i += 1;
 
-            match &args[i][..] {
+            match &args[i - 1][..] {
                 "-set-root" => {
                     book.set_root(fen_to_chess(&args[i]));
                 }
@@ -222,9 +251,16 @@ pub fn run() {
     let inputs = get_input_files(&args);
     let outputs = get_output_files(&args);
 
+    println!("Building book from pgn files...");
     let mut book = book_from_pgns(&args, &inputs);
 
-    merge_book_files(&mut book, &inputs);
+    println!("Created {} entries in book", book.len());
+
+    println!("Combining pgn book with other book files...");
+    merge_book_files(&mut book, &inputs, &args);
+    println!("Applying modifications to book...");
     modify_book(&mut book, &args);
+    println!("Writing book to output...");
     write_book(&mut book, &outputs);
+    println!("Done!");
 }

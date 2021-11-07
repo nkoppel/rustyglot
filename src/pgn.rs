@@ -26,10 +26,14 @@ pub struct PgnFilter {
     max_elo: usize,
     min_high_elo: usize,
     max_low_elo: usize,
+    min_elo_diff: usize,
+    max_elo_diff: usize,
     min_time: usize,
     max_time: usize,
     min_increment: usize,
     max_increment: usize,
+    min_game_length: usize,
+    max_game_length: usize,
     draws: bool,
     white_wins: bool,
     black_wins: bool,
@@ -38,6 +42,7 @@ pub struct PgnFilter {
 struct PgnVisitor {
     game: PgnGame,
     filter: PgnFilter,
+    is_standard_variant: bool
 }
 
 impl PgnGame {
@@ -90,17 +95,21 @@ impl PgnFilter {
             max_elo: usize::MAX,
             min_high_elo: 0,
             max_low_elo: usize::MAX,
+            min_elo_diff: 0,
+            max_elo_diff: usize::MAX,
             min_time: 0,
             max_time: usize::MAX,
             min_increment: 0,
             max_increment: usize::MAX,
+            min_game_length: 0,
+            max_game_length: usize::MAX,
             draws: true,
             white_wins: true,
             black_wins: true,
         }
     }
 
-    pub fn matches(&self, game: &PgnGame) -> bool {
+    fn header_matches(&self, game: &PgnGame) -> bool {
         match game.outcome {
             Outcome::Decisive{winner: Color::White}
                 if !self.white_wins => return false,
@@ -111,11 +120,14 @@ impl PgnFilter {
         }
 
         if let (Some(white), Some(black)) = (game.white_elo, game.black_elo) {
-            let low_elo  = white.max(black);
-            let high_elo = white.min(black);
+            let high_elo = white.max(black);
+            let low_elo  = white.min(black);
 
-            if high_elo < self.min_high_elo || high_elo > self.max_elo ||
-               low_elo  > self.max_low_elo  || low_elo  < self.min_elo
+            let diff_elo = high_elo - low_elo;
+
+            if low_elo  < self.min_elo      || high_elo > self.max_elo      ||
+               high_elo < self.min_high_elo || low_elo  > self.max_low_elo  ||
+               diff_elo < self.min_elo_diff || diff_elo > self.max_elo_diff
             {
                 return false;
             }
@@ -138,6 +150,15 @@ impl PgnFilter {
         true
     }
 
+    fn moves_match(&self, game: &PgnGame) -> bool {
+        game.moves.len() >= self.min_game_length &&
+        game.moves.len() <= self.max_game_length
+    }
+
+    pub fn matches(&self, game: &PgnGame) -> bool {
+        self.header_matches(game) && self.moves_match(game)
+    }
+
     pub fn from_args(args: &[String]) -> Self {
         let mut out = Self::new();
         let mut i = 0;
@@ -158,6 +179,12 @@ impl PgnFilter {
                             "-max-elo" => out.max_elo = num,
                             "-min-high-elo" => out.min_high_elo = num,
                             "-max-low-elo"  => out.max_low_elo  = num,
+
+                            "-min-elo-diff" => out.min_elo_diff = num,
+                            "-max-elo-diff" => out.max_elo_diff = num,
+
+                            "-min-game-length" => out.min_game_length = num,
+                            "-max-game-length" => out.max_game_length = num,
 
                             "-min-time" => out.min_time = num,
                             "-max-time" => out.max_time = num,
@@ -183,13 +210,15 @@ impl PgnVisitor {
         PgnVisitor {
             game: PgnGame::new(),
             filter: PgnFilter::new(),
+            is_standard_variant: true,
         }
     }
 
     fn with_filter(filter: PgnFilter) -> Self {
         PgnVisitor {
             game: PgnGame::new(),
-            filter
+            filter,
+            is_standard_variant: true,
         }
     }
 
@@ -213,24 +242,31 @@ impl Visitor for PgnVisitor {
 
         match &k[..] {
             "TimeControl" => {
-                let ws: Vec<&str> = v.split(|c| "/+-?*".contains(c)).collect();
+                let vs: Vec<&str> = v.split(|c| "/+-?*".contains(c)).collect();
+                let mut nums = Vec::new();
 
-                match ws.len() {
+                for num in vs {
+                    if let Ok(n) = num.parse::<usize>() {
+                        nums.push(n);
+                    }
+                }
+
+                match nums.len() {
                     1 => {
-                        self.game.time = Some(ws[0].parse::<usize>().unwrap());
+                        self.game.time = Some(nums[0]);
                         self.game.increment = Some(0);
                     }
                     2 if v.contains('+') => {
-                        self.game.time = Some(ws[0].parse::<usize>().unwrap());
-                        self.game.increment = Some(ws[1].parse::<usize>().unwrap());
+                        self.game.time = Some(nums[0]);
+                        self.game.increment = Some(nums[1]);
                     }
                     2 => {
-                        self.game.time = Some(ws[1].parse::<usize>().unwrap());
+                        self.game.time = Some(nums[1]);
                         self.game.increment = Some(0);
                     }
                     3 => {
-                        self.game.time = Some(ws[1].parse::<usize>().unwrap());
-                        self.game.increment = Some(ws[2].parse::<usize>().unwrap());
+                        self.game.time = Some(nums[1]);
+                        self.game.increment = Some(nums[2]);
                     }
                     _ => {},
                 }
@@ -250,6 +286,12 @@ impl Visitor for PgnVisitor {
                     _ => {}
                 }
             }
+            // Useful when dealing with Lichess exports
+            "Variant" => {
+                if v != "Standard" {
+                    self.is_standard_variant = false
+                }
+            }
             _ => {}
         }
 
@@ -257,11 +299,10 @@ impl Visitor for PgnVisitor {
     }
 
     fn end_headers(&mut self) -> Skip {
-        if self.filter.matches(&self.game) {
-            Skip(false)
-        } else {
-            Skip(true)
-        }
+        Skip(
+            !(self.filter.header_matches(&self.game) &&
+              self.is_standard_variant)
+        )
     }
 
     fn san(&mut self, san: SanPlus) {
@@ -278,11 +319,12 @@ impl Visitor for PgnVisitor {
 use std::io::{Read, Write};
 
 pub fn read_games<R: Read>(filter: PgnFilter, read: R) -> Vec<PgnGame> {
-    let mut visitor = PgnVisitor::with_filter(filter);
+    let mut visitor = PgnVisitor::with_filter(filter.clone());
 
     BufferedReader::new(read)
         .into_iter(&mut visitor)
         .map(|x| x.unwrap())
+        .filter(|game| filter.matches(game))
         .collect()
 }
 
@@ -290,10 +332,14 @@ pub fn fold_games<R, F>(filter: PgnFilter, read: R, f: &mut F)
     where R: Read,
           F: FnMut(PgnGame)
 {
-    let mut visitor = PgnVisitor::with_filter(filter);
+    let mut visitor = PgnVisitor::with_filter(filter.clone());
 
     for game in BufferedReader::new(read).into_iter(&mut visitor) {
-        f(game.unwrap())
+        let game = game.unwrap();
+
+        if filter.matches(&game) {
+            f(game)
+        }
     }
 }
 
