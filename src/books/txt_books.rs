@@ -215,11 +215,7 @@ impl BookMap {
                         panic!("Invalid token {:?} at {}:{}", word, line_number + 1, i + 1);
                     }
 
-                    if " \n\t,/()".contains(c) {
-                        wordstart = i + 1;
-                    } else {
-                        wordstart = i;
-                    }
+                    wordstart = i;
 
                     if c.is_ascii_alphabetic() {
                         read_weight = false;
@@ -260,8 +256,11 @@ impl BookMap {
 
                     san = None;
                     learn = 0;
-                    entrystart = i + 1;
                     read_weight = true;
+                }
+                if "\n,/()".contains(c) {
+                    entrystart = i + 1;
+                    wordstart  = i + 1;
                 }
                 match c {
                     '/' => {                   first_entry = true; weight = 1}

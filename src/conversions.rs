@@ -257,6 +257,7 @@ pub fn book_hash(board: Chess) -> u64 {
         out ^= RANDOM_ENPASSANT[usize::from(sq.file())];
     }
 
+    // Player's Turn
     if board.turn() == Color::White {
         out ^= RANDOM_TURN;
     }
