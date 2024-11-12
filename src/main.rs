@@ -1,10 +1,10 @@
 #![allow(unused_must_use)]
 #![allow(dead_code)]
 
+mod args;
+mod books;
 mod conversions;
 mod pgn;
-mod books;
-mod args;
 
 fn main() {
     // let mut reader = BufReader::new(File::open("out2.bin.blob").unwrap());

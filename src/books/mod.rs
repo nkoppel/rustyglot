@@ -2,12 +2,10 @@ use crate::conversions::*;
 use crate::pgn::*;
 
 use std::collections::HashMap;
-use std::io::{Read, Write};
 use std::convert::TryInto;
+use std::io::{Read, Write};
 
 mod txt_books;
-
-pub use txt_books::*;
 
 const U16_MAX: u64 = u16::MAX as u64;
 
@@ -22,7 +20,7 @@ pub struct BookEntry {
 
 pub struct BookMap {
     map: HashMap<u64, Vec<BookEntry>>,
-    root: Chess
+    root: Chess,
 }
 
 impl BookEntry {
@@ -58,9 +56,9 @@ impl BookEntry {
     fn from_bytes(bytes: &[u8]) -> Self {
         let mut out = Self::new();
 
-        out.mov    = u16::from_be_bytes(bytes[0..2].try_into().unwrap());
+        out.mov = u16::from_be_bytes(bytes[0..2].try_into().unwrap());
         out.weight = u16::from_be_bytes(bytes[2..4].try_into().unwrap()) as u64;
-        out.learn  = u32::from_be_bytes(bytes[4..8].try_into().unwrap());
+        out.learn = u32::from_be_bytes(bytes[4..8].try_into().unwrap());
 
         out
     }
@@ -121,23 +119,21 @@ impl BookMap {
     }
 
     fn traverse_tree<F>(&mut self, mut f: F)
-        where F: FnMut(usize, &Chess, &mut Vec<BookEntry>, usize)
+    where
+        F: FnMut(usize, &Chess, &mut Vec<BookEntry>, usize),
     {
         let mut stack = vec![(self.root.clone(), 0)];
 
         while let Some((pos, ind)) = stack.pop() {
             let hash = book_hash(pos.clone());
 
-            if let Some(mut entries) = self.map.get_mut(&hash) {
+            if let Some(entries) = self.map.get_mut(&hash) {
                 if ind < entries.len() {
-                    f(stack.len(), &pos, &mut entries, ind);
+                    f(stack.len(), &pos, entries, ind);
                 }
 
                 if let Some(ind) = entries.iter().position(|e| !e.visited) {
-                    let mov =
-                        from_book_move(entries[ind].mov)
-                            .to_move(&pos)
-                            .unwrap();
+                    let mov = from_book_move(entries[ind].mov).to_move(&pos).unwrap();
 
                     entries[ind].visited = true;
 
@@ -152,7 +148,8 @@ impl BookMap {
     }
 
     pub fn map_nodes<F>(&mut self, mut f: F)
-        where F: FnMut(&mut Vec<BookEntry>)
+    where
+        F: FnMut(&mut Vec<BookEntry>),
     {
         self.map.retain(|_, vec| {
             f(vec);
@@ -161,9 +158,10 @@ impl BookMap {
     }
 
     pub fn map_entries<F>(&mut self, mut f: F)
-        where F: FnMut(&mut BookEntry)
+    where
+        F: FnMut(&mut BookEntry),
     {
-        for (_, v) in &mut self.map {
+        for v in self.map.values_mut() {
             for entry in v {
                 f(entry)
             }
@@ -171,7 +169,8 @@ impl BookMap {
     }
 
     pub fn filter<F>(&mut self, mut f: F)
-        where F: FnMut(&BookEntry) -> bool
+    where
+        F: FnMut(&BookEntry) -> bool,
     {
         self.map.retain(|_, vec| {
             vec.retain(|x| f(x));
@@ -200,9 +199,10 @@ impl BookMap {
     }
 
     pub fn write<W: Write>(&self, writer: &mut W) {
-        let mut vec = self.map
+        let mut vec = self
+            .map
             .iter()
-            .map(|(hash, entries)|{
+            .map(|(hash, entries)| {
                 let mut entries = entries.clone();
                 entries.sort_unstable();
 
@@ -259,18 +259,17 @@ impl BookMap {
             let uci = Uci::from_chess960(&mov);
             board = board.play(&mov).unwrap();
 
-            let weight =
-                if frequency {
-                    1
-                } else if let Outcome::Decisive{winner} = game.outcome {
-                    if (winner == Color::White) == (depth % 2 == 0) {
-                        2
-                    } else {
-                        0
-                    }
+            let weight = if frequency {
+                1
+            } else if let Outcome::Decisive { winner } = game.outcome {
+                if (winner == Color::White) == (depth % 2 == 0) {
+                    2
                 } else {
-                    1
-                };
+                    0
+                }
+            } else {
+                1
+            };
 
             self.insert_combine(
                 hash,
@@ -279,8 +278,8 @@ impl BookMap {
                     visited: false,
                     depth: Some(depth),
                     weight,
-                    learn: 0
-                }
+                    learn: 0,
+                },
             )
         }
     }

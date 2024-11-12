@@ -1,10 +1,10 @@
+use crate::books::*;
 use crate::conversions::fen_to_chess;
 use crate::pgn::*;
-use crate::books::*;
 
 use std::env;
-use std::io::{self, Read, Write, BufReader};
 use std::fs::File;
+use std::io::{self, BufReader, Read, Write};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum FileType {
@@ -17,9 +17,9 @@ enum FileType {
 use FileType::*;
 
 fn get_input_files(args: &[String]) -> Vec<(FileType, String)> {
-    let types = vec![Json      , Pgn      , Bin      , Tree(false)];
-    let tags  = vec!["-in-json", "-in-pgn", "-in-bin", "-in-tree" ];
-    let exts  = vec![".json"   , ".pgn"   , ".bin"   , ".tree"    ];
+    let types = [Json, Pgn, Bin, Tree(false)];
+    let tags = ["-in-json", "-in-pgn", "-in-bin", "-in-tree"];
+    let exts = [".json", ".pgn", ".bin", ".tree"];
 
     let mut out = Vec::new();
     let mut i = 0;
@@ -32,10 +32,9 @@ fn get_input_files(args: &[String]) -> Vec<(FileType, String)> {
                 out.push((types[j], args[i + 1].clone()));
                 i += 1;
             }
-        } else if let Some(j) =
-            exts.iter().position(|x|
-                arg[arg.len().saturating_sub(x.len())..] == **x
-            )
+        } else if let Some(j) = exts
+            .iter()
+            .position(|x| arg[arg.len().saturating_sub(x.len())..] == **x)
         {
             out.push((types[j], args[i].clone()));
         }
@@ -47,9 +46,9 @@ fn get_input_files(args: &[String]) -> Vec<(FileType, String)> {
 }
 
 fn get_output_files(args: &[String]) -> Vec<(FileType, String)> {
-    let types = vec![Json       , Bin       , Tree(true)      , Tree(false)];
-    let tags  = vec!["-out-json", "-out-bin", "-out-tree-blob", "-out-tree"];
-    let exts  = vec![".json"    , ".bin"    , ".blob.tree"    , ".tree"    ];
+    let types = [Json, Bin, Tree(true), Tree(false)];
+    let tags = ["-out-json", "-out-bin", "-out-tree-blob", "-out-tree"];
+    let exts = [".json", ".bin", ".blob.tree", ".tree"];
 
     let mut out = Vec::new();
     let mut i = 0;
@@ -62,10 +61,9 @@ fn get_output_files(args: &[String]) -> Vec<(FileType, String)> {
                 out.push((types[j], args[i + 1].clone()));
                 i += 1;
             }
-        } else if let Some(j) =
-            exts.iter().position(|x|
-                arg[arg.len().saturating_sub(x.len())..] == **x
-            )
+        } else if let Some(j) = exts
+            .iter()
+            .position(|x| arg[arg.len().saturating_sub(x.len())..] == **x)
         {
             out.push((types[j], args[i].clone()));
         }
@@ -82,31 +80,28 @@ fn book_from_pgns(args: &[String], files: &[(FileType, String)]) -> BookMap {
 
     let frequency = args.contains(&"-frequency".to_string());
 
-    let depth =
-        if let Some(pos) = args.iter().position(|x| x == "-pgn-depth") {
-            args[pos + 1].parse::<usize>().unwrap_or(usize::MAX)
-        } else {
-            usize::MAX
-        };
+    let depth = if let Some(pos) = args.iter().position(|x| x == "-pgn-depth") {
+        args[pos + 1].parse::<usize>().unwrap_or(usize::MAX)
+    } else {
+        usize::MAX
+    };
 
     let mut i = 0;
 
     for (_, filename) in files.iter().filter(|x| x.0 == Pgn) {
-        let reader: Box<dyn Read> =
-            if filename == "-" {
-                Box::new(io::stdin())
-            } else {
-                Box::new(File::open(filename).expect(&format!("Failure reading file {}", filename)))
-            };
+        let reader: Box<dyn Read> = if filename == "-" {
+            Box::new(io::stdin())
+        } else {
+            Box::new(
+                File::open(filename)
+                    .unwrap_or_else(|_| panic!("Failure reading file {}", filename)),
+            )
+        };
 
-        fold_games(
-            filter.clone(),
-            reader,
-            &mut |game| {
-                i += 1;
-                book.add_game(&game, frequency, depth)
-            }
-        );
+        fold_games(filter.clone(), reader, &mut |game| {
+            i += 1;
+            book.add_game(&game, frequency, depth)
+        });
     }
 
     println!("Wrote entries from {} games", i);
@@ -119,12 +114,14 @@ fn merge_book_files(book: &mut BookMap, files: &[(FileType, String)], args: &[St
     let mut merged = false;
 
     for (filetype, filename) in files.iter().filter(|x| x.0 != Pgn) {
-        let mut reader: Box<dyn Read> =
-            if filename == "-" {
-                Box::new(io::stdin())
-            } else {
-                Box::new(File::open(filename).expect(&format!("Failure reading file {}", filename)))
-            };
+        let mut reader: Box<dyn Read> = if filename == "-" {
+            Box::new(io::stdin())
+        } else {
+            Box::new(
+                File::open(filename)
+                    .unwrap_or_else(|_| panic!("Failure reading file {}", filename)),
+            )
+        };
 
         if *filetype == Bin {
             if combine {
@@ -133,12 +130,11 @@ fn merge_book_files(book: &mut BookMap, files: &[(FileType, String)], args: &[St
                 book.extend_from_reader(&mut reader)
             }
         } else {
-            let book2 =
-                match filetype {
-                    Json => BookMap::read_json(&mut BufReader::new(reader)),
-                    Tree(_) => BookMap::read_txt(&mut BufReader::new(reader)),
-                    _ => panic!()
-                };
+            let book2 = match filetype {
+                Json => BookMap::read_json(&mut BufReader::new(reader)),
+                Tree(_) => BookMap::read_txt(&mut BufReader::new(reader)),
+                _ => panic!(),
+            };
 
             if combine {
                 book.merge_combine(book2);
@@ -202,11 +198,9 @@ fn modify_book(book: &mut BookMap, args: &[String]) {
                 "-scale-weights" => {
                     let factor = args[i].parse::<f64>().unwrap();
 
-                    book.map_entries(|entry| {
-                        entry.weight = (entry.weight as f64 * factor) as u64
-                    })
+                    book.map_entries(|entry| entry.weight = (entry.weight as f64 * factor) as u64)
                 }
-                _ => i -= 1
+                _ => i -= 1,
             }
         }
 
@@ -214,18 +208,10 @@ fn modify_book(book: &mut BookMap, args: &[String]) {
             "-remove-disconnected" => {
                 book.remove_disconnected();
             }
-            "-white-only" => {
-                book.filter(|entry| entry.depth.unwrap_or(1) % 2 == 0)
-            }
-            "-black-only" => {
-                book.filter(|entry| entry.depth.unwrap_or(0) % 2 == 1)
-            }
-            "-clear-learning" => {
-                book.map_entries(|entry| entry.learn = 0)
-            }
-            "-uniform" => {
-                book.map_entries(|entry| entry.weight = 1)
-            }
+            "-white-only" => book.filter(|entry| entry.depth.unwrap_or(1) % 2 == 0),
+            "-black-only" => book.filter(|entry| entry.depth.unwrap_or(0) % 2 == 1),
+            "-clear-learning" => book.map_entries(|entry| entry.learn = 0),
+            "-uniform" => book.map_entries(|entry| entry.weight = 1),
             _ => {}
         }
 
@@ -235,12 +221,11 @@ fn modify_book(book: &mut BookMap, args: &[String]) {
 
 fn write_book(book: &mut BookMap, outputs: &[(FileType, String)]) {
     for (filetype, filename) in outputs {
-        let mut writer: Box<dyn Write> =
-            if filename == "-" {
-                Box::new(io::stdout())
-            } else {
-                Box::new(File::create(filename).unwrap())
-            };
+        let mut writer: Box<dyn Write> = if filename == "-" {
+            Box::new(io::stdout())
+        } else {
+            Box::new(File::create(filename).unwrap())
+        };
 
         match filetype {
             Bin => book.write(&mut writer),

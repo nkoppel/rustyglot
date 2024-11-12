@@ -1,10 +1,10 @@
 use super::*;
 
-use std::io::{Write, BufRead};
 use std::cmp::Reverse;
+use std::io::{BufRead, Write};
 
-use serde_json::Value;
 use serde::de::Deserialize;
+use serde_json::Value;
 
 impl BookMap {
     pub fn write_txt<W: Write>(&mut self, mut w: &mut W) {
@@ -136,7 +136,11 @@ impl BookMap {
                 write!(&mut w, ",");
             }
 
-            write!(&mut w, "\"{}\":{{\"weight\":{},\"learn\":{},\"children\":{{", san, entry.weight, entry.learn);
+            write!(
+                &mut w,
+                "\"{}\":{{\"weight\":{},\"learn\":{},\"children\":{{",
+                san, entry.weight, entry.learn
+            );
 
             last_depth = depth as isize;
         });
@@ -153,7 +157,7 @@ fn process_line(line: &mut String) -> usize {
         match c {
             ' ' => indent += 1,
             '\t' => indent += 4,
-            _ => break
+            _ => break,
         }
         start += 1;
     }
@@ -200,11 +204,11 @@ impl BookMap {
             let mut read_weight = true;
 
             for (i, c) in line.chars().enumerate() {
-                if " \n\t,/()".contains(c) || (!c.is_digit(10) && read_weight) {
+                if " \n\t,/()".contains(c) || (!c.is_ascii_digit() && read_weight) {
                     let word = &line[wordstart..i];
 
                     if let Ok(n) = word.parse::<u64>() {
-                        if san == None {
+                        if san.is_none() {
                             weight = n;
                         } else {
                             learn = n as u32;
@@ -234,11 +238,24 @@ impl BookMap {
                         first_entry = false;
                     }
 
-                    let s = san.expect(&format!("Entry {:?} has no move at {}:{}", &line[entrystart..i], line_number + 1, i + 1));
+                    let s = san.unwrap_or_else(|| {
+                        panic!(
+                            "Entry {:?} has no move at {}:{}",
+                            &line[entrystart..i],
+                            line_number + 1,
+                            i + 1
+                        )
+                    });
 
-                    let mov = s.san
-                        .to_move(&pos)
-                        .expect(&format!("Invalid move {} for position {:?} at {}:{}", s, fen(&pos), line_number + 1, i + 1));
+                    let mov = s.san.to_move(&pos).unwrap_or_else(|_| {
+                        panic!(
+                            "Invalid move {} for position {:?} at {}:{}",
+                            s,
+                            fen(&pos),
+                            line_number + 1,
+                            i + 1
+                        )
+                    });
 
                     let book_move = to_book_move(Uci::from_chess960(&mov));
 
@@ -260,12 +277,23 @@ impl BookMap {
                 }
                 if "\n,/()".contains(c) {
                     entrystart = i + 1;
-                    wordstart  = i + 1;
+                    wordstart = i + 1;
                 }
                 match c {
-                    '/' => {                   first_entry = true; weight = 1}
-                    '(' => {paren_indent += 4; first_entry = true; weight = 1}
-                    ')' => {paren_indent -= 4; first_entry = true; weight = 1}
+                    '/' => {
+                        first_entry = true;
+                        weight = 1
+                    }
+                    '(' => {
+                        paren_indent += 4;
+                        first_entry = true;
+                        weight = 1
+                    }
+                    ')' => {
+                        paren_indent -= 4;
+                        first_entry = true;
+                        weight = 1
+                    }
                     _ => {}
                 }
             }
@@ -283,17 +311,24 @@ impl BookMap {
         let mut out = BookMap::new();
 
         let root = json
-            .as_object().unwrap()
-            .get("rootFen").unwrap()
-            .as_str().unwrap()
-            .parse::<Fen>().unwrap();
+            .as_object()
+            .unwrap()
+            .get("rootFen")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .parse::<Fen>()
+            .unwrap();
 
         out.root = root.position(Chess960).expect("Invalid root position");
 
         let tree = json
-            .as_object().unwrap()
-            .get("tree").unwrap()
-            .as_object().unwrap();
+            .as_object()
+            .unwrap()
+            .get("tree")
+            .unwrap()
+            .as_object()
+            .unwrap();
 
         let mut stack = Vec::new();
         stack.push((out.root.clone(), tree.iter().collect::<Vec<_>>(), 0));
@@ -309,18 +344,18 @@ impl BookMap {
             let san = san.parse::<San>().unwrap();
             let mov = san
                 .to_move(&pos)
-                .expect(&format!("Invalid move {} for position {:?}", san, fen(&pos)));
+                .unwrap_or_else(|_| panic!("Invalid move {} for position {:?}", san, fen(&pos)));
 
             let book_move = to_book_move(Uci::from_chess960(&mov));
             let weight = entry.get("weight").unwrap().as_u64().unwrap();
-            let learn  = entry.get("learn" ).unwrap().as_u64().unwrap();
+            let learn = entry.get("learn").unwrap().as_u64().unwrap();
 
             let out_entry = BookEntry {
                 mov: book_move,
                 visited: false,
                 depth: Some(stack.len()),
                 weight,
-                learn: learn as u32
+                learn: learn as u32,
             };
 
             out.insert(book_hash(pos.clone()), out_entry);
@@ -328,9 +363,12 @@ impl BookMap {
 
             let pos = pos.clone().play(&mov).unwrap();
             let children = entry
-                .get("children").unwrap()
-                .as_object().unwrap()
-                .iter().collect::<Vec<_>>();
+                .get("children")
+                .unwrap()
+                .as_object()
+                .unwrap()
+                .iter()
+                .collect::<Vec<_>>();
 
             stack.push((pos, children, 0));
         }
