@@ -19,7 +19,7 @@ pub struct BookEntry {
 }
 
 pub struct BookMap {
-    map: HashMap<u64, Vec<BookEntry>>,
+    map: HashMap<u64, Vec<BookEntry>, nohash_hasher::BuildNoHashHasher<u64>>,
     root: Chess,
 }
 
@@ -67,7 +67,7 @@ impl BookEntry {
 impl BookMap {
     pub fn new() -> Self {
         BookMap {
-            map: HashMap::new(),
+            map: HashMap::with_hasher(nohash_hasher::BuildNoHashHasher::default()),
             root: Chess::default(),
         }
     }
@@ -256,7 +256,7 @@ impl BookMap {
             let hash = book_hash(board.clone());
 
             let mov = sanplus.san.to_move(&board).unwrap();
-            let uci = Uci::from_chess960(&mov);
+            let uci = UciMove::from_chess960(&mov);
             board = board.play(&mov).unwrap();
 
             let weight = if frequency {

@@ -78,7 +78,7 @@ fn book_from_pgns(args: &[String], files: &[(FileType, String)]) -> BookMap {
     let filter = PgnFilter::from_args(args);
     let mut book = BookMap::new();
 
-    let frequency = args.contains(&"-frequency".to_string());
+    let frequency = args.iter().any(|a| a == "-frequency");
 
     let depth = if let Some(pos) = args.iter().position(|x| x == "-pgn-depth") {
         args[pos + 1].parse::<usize>().unwrap_or(usize::MAX)
@@ -179,9 +179,7 @@ fn modify_book(book: &mut BookMap, args: &[String]) {
                     let best = args[i].parse::<usize>().unwrap();
 
                     book.map_nodes(|node| {
-                        // y, x
-                        node.sort_unstable_by(|x, y| y.weight.cmp(&x.weight));
-
+                        node.sort_by_key(|x| u64::MAX - x.weight);
                         node.truncate(best);
                     })
                 }
@@ -189,9 +187,7 @@ fn modify_book(book: &mut BookMap, args: &[String]) {
                     let worst = args[i].parse::<usize>().unwrap();
 
                     book.map_nodes(|node| {
-                        // x, y
-                        node.sort_unstable_by(|x, y| x.weight.cmp(&y.weight));
-
+                        node.sort_by_key(|x| x.weight);
                         node.truncate(worst);
                     })
                 }

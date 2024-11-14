@@ -5,6 +5,11 @@ use std::io::{BufRead, Write};
 
 use serde::de::Deserialize;
 use serde_json::Value;
+use shakmaty::{fen::Fen, EnPassantMode};
+
+fn fen(pos: &Chess) -> Fen {
+    Fen::from_position(pos.clone(), EnPassantMode::Legal)
+}
 
 impl BookMap {
     pub fn write_txt<W: Write>(&mut self, mut w: &mut W) {
@@ -186,7 +191,7 @@ impl BookMap {
 
             if root {
                 if let Ok(fen) = line.parse::<Fen>() {
-                    pos = fen.position(Chess960).expect("Invalid root position");
+                    pos = fen.into_position(Chess960).expect("Invalid root position");
                     out.root = pos.clone();
                     root = false;
                     continue;
@@ -257,7 +262,7 @@ impl BookMap {
                         )
                     });
 
-                    let book_move = to_book_move(Uci::from_chess960(&mov));
+                    let book_move = to_book_move(UciMove::from_chess960(&mov));
 
                     let entry = BookEntry {
                         mov: book_move,
@@ -320,7 +325,7 @@ impl BookMap {
             .parse::<Fen>()
             .unwrap();
 
-        out.root = root.position(Chess960).expect("Invalid root position");
+        out.root = root.into_position(Chess960).expect("Invalid root position");
 
         let tree = json
             .as_object()
@@ -346,7 +351,7 @@ impl BookMap {
                 .to_move(&pos)
                 .unwrap_or_else(|_| panic!("Invalid move {} for position {:?}", san, fen(&pos)));
 
-            let book_move = to_book_move(Uci::from_chess960(&mov));
+            let book_move = to_book_move(UciMove::from_chess960(&mov));
             let weight = entry.get("weight").unwrap().as_u64().unwrap();
             let learn = entry.get("learn").unwrap().as_u64().unwrap();
 

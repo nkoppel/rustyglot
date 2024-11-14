@@ -1,12 +1,13 @@
 // reference: http://hgm.nubati.net/book_format.html
 
+use shakmaty::EnPassantMode;
 pub use shakmaty::{
-    fen::{fen, Fen},
+    fen::Fen,
     san::{San, SanPlus},
-    uci::Uci,
+    uci::UciMove,
     CastlingMode,
     CastlingMode::*,
-    CastlingSide, Chess, Color, Outcome, Position, Role, Setup, Square,
+    CastlingSide, Chess, Color, Outcome, Position, Role, Square,
 };
 
 pub const START_HASH: u64 = 0x463b96181691fc9c;
@@ -803,7 +804,7 @@ pub fn book_hash(board: Chess) -> u64 {
     let mut out = 0;
 
     // Piece
-    for (sq, piece) in board.board().pieces() {
+    for (sq, piece) in board.board().clone().into_iter() {
         let mut idx = (usize::from(piece.role) - 1) * 2;
 
         if piece.color == Color::White {
@@ -813,7 +814,7 @@ pub fn book_hash(board: Chess) -> u64 {
         out ^= RANDOM_PIECE[64 * idx + usize::from(sq)];
     }
 
-    //Castle
+    // Castle
     let castles = board.castles();
 
     if castles.has(Color::White, CastlingSide::KingSide) {
@@ -830,7 +831,7 @@ pub fn book_hash(board: Chess) -> u64 {
     }
 
     // En Passant
-    if let Some(sq) = board.ep_square() {
+    if let Some(sq) = board.ep_square(EnPassantMode::Legal) {
         out ^= RANDOM_ENPASSANT[usize::from(sq.file())];
     }
 
@@ -842,8 +843,8 @@ pub fn book_hash(board: Chess) -> u64 {
     out
 }
 
-pub fn to_book_move(mov: Uci) -> u16 {
-    if let Uci::Normal {
+pub fn to_book_move(mov: UciMove) -> u16 {
+    if let UciMove::Normal {
         from: sq1,
         to: sq2,
         promotion,
@@ -867,7 +868,7 @@ const SQ_MASK: u16 = (1 << 6) - 1;
 
 use std::convert::TryFrom;
 
-pub fn from_book_move(mov: u16) -> Uci {
+pub fn from_book_move(mov: u16) -> UciMove {
     let i1 = (mov >> 6 & SQ_MASK) as usize;
     let i2 = (mov & SQ_MASK) as usize;
 
@@ -879,7 +880,7 @@ pub fn from_book_move(mov: u16) -> Uci {
         x => Some(Role::try_from(x).unwrap()),
     };
 
-    Uci::Normal {
+    UciMove::Normal {
         from: sq1,
         to: sq2,
         promotion,
@@ -889,7 +890,7 @@ pub fn from_book_move(mov: u16) -> Uci {
 pub fn fen_to_chess(fen: &str) -> Chess {
     fen.parse::<Fen>()
         .unwrap()
-        .position(CastlingMode::Chess960)
+        .into_position(CastlingMode::Chess960)
         .unwrap()
 }
 
@@ -943,7 +944,7 @@ fn t_hash() {
 
 #[test]
 fn t_book_move() {
-    let mov = Uci::Normal {
+    let mov = UciMove::Normal {
         from: Square::E7,
         to: Square::E8,
         promotion: Some(Role::Queen),

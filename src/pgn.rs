@@ -237,6 +237,7 @@ impl Visitor for PgnVisitor {
     type Result = PgnGame;
 
     fn begin_game(&mut self) {
+        self.skip = false;
         self.game = PgnGame::new();
     }
 

@@ -44,7 +44,7 @@ pgn options:
 
 pgn to bin conversion options
     -frequency: instead of weighing moves by 2 points per win and 1 point per draw, weigh them by one point per occurrence
-    -pgn-depth <max_depth> (default 10)
+    -pgn-depth <max_depth> (default infinite)
 
 merge options:
     -combine-entries: instead of entries from input files given later being ignored, have entries from later books add their weights to existing entries (learning values of later books are still ignored)
